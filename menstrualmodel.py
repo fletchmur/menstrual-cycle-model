@@ -93,7 +93,6 @@ class ControlMenstrualModel:
 
         return Pn / (Kn + Pn)
 
-
     @staticmethod
     def hill_repress(K, n, P):
         P = np.maximum(P, 1e-12)
@@ -108,6 +107,12 @@ class ControlMenstrualModel:
     @staticmethod
     def hill_biphasic(K1, K2, n1, n2, P):
         return ControlMenstrualModel.hill_activate(K1, n1, P) * ControlMenstrualModel.hill_repress(K2, n2, P)
+    
+    @staticmethod
+    def d_hill_biphasic(K1, K2, n1, n2, P):
+        num = (K2**n2) * (P**(n1 - 1)) * (n1 * (K2**n2) * (K1**n1) - (P**n2) * ((K1**n1) * (n2-n1) + n2 * (P**n1)))
+        denom = (((K2**n2) + (P**n2)) ** 2) * (((K1**n1) + (P**n1)) ** 2)
+        return num / denom
     
     def ode(self, t, y, u):
         h = self.unpack(y)
@@ -153,6 +158,55 @@ class ControlMenstrualModel:
                      + alphaE * uE)
         
         return np.array([dGnRH, dLH, dEstrogen])
+    
+    def costate_equations(self, t, y, u, state_solution, c):
+        G, L, E = state_solution.sol(t)
+        lam1, lam2, lam3 = y
+        uG, uL, uE = u
+        c1, c2, c3, c4, c5 = c
+
+        #clamping the hormones to avoid numerical instability
+        G = max(G, 1e-8)
+        L = max(L, 1e-8)
+        E = max(E, 1e-8)
+        
+        # ---------------- GnRH ----------------
+        synth_E_on_GnRH = self.params['synthesis']['GnRH']
+        clearance_GnRH = self.params['clearance']['GnRH']
+        n_EGnRH1, n_EGnRH2 = self.params['regulatory'][('Estrogen', 'GnRH')]['n']
+        K_EGnRH1, K_EGnRH2 = self.params['regulatory'][('Estrogen', 'GnRH')]['K']
+        alphaG = self.params['control']['GnRH']
+        
+        
+        # ---------------- LH ----------------
+        synth_LH_GnRH = self.params['synthesis']['LH']
+        clearance_LH = self.params['clearance']['LH']
+        n1_GLH, n2_GLH = self.params['regulatory'][('GnRH', 'LH')]['n']
+        K1_GLH, K2_GLH = self.params['regulatory'][('GnRH', 'LH')]['K']
+        alphaL = self.params['control']['LH']
+
+        
+        # ---------------- Estrogen ----------------
+        synth_Estrogen = self.params['synthesis']['Estrogen']
+        clearance_Estrogen = self.params['clearance']['Estrogen']
+        n_L_E1, n_L_E2 = self.params['regulatory'][('LH', 'Estrogen')]['n']
+        K_L_E1, K_L_E2 = self.params['regulatory'][('LH', 'Estrogen')]['K']
+        alphaE = self.params['control']['Estrogen']
+        
+        dH_dG = -lam1 * clearance_GnRH + lam2 * synth_LH_GnRH * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
+                - 2 *  c2 * (synth_LH_GnRH * self.hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E) - clearance_LH * L + alphaL * uL) \
+                * synth_LH_GnRH * self.d_hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E)
+        
+        dH_dL = -lam2 * clearance_LH + lam3 * synth_Estrogen * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
+                -2 * c1 * (synth_Estrogen * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_Estrogen * E + alphaE * uE) * synth_Estrogen \
+                * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
+                + 2 * c2 * (synth_LH_GnRH * self.hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E) - clearance_LH * L + alphaL * uL) * clearance_LH
+
+        dH_dE = lam1 * synth_E_on_GnRH * self.d_hill_biphasic(K_L_E1, K_L_E2, n_L_E1, n_L_E2, L) - lam3 * clearance_Estrogen \
+                + 2 * c1 * (synth_Estrogen * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_Estrogen * E + alphaE * uE) * clearance_Estrogen
+
+        
+        return np.array([dH_dG, dH_dL, dH_dE])
     
     def simulate(self, u, method='RK45'):
         """Simulate the ODE system over the time domain."""
