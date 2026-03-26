@@ -117,7 +117,7 @@ class ControlMenstrualModel:
     def ode(self, t, y, u):
         h = self.unpack(y)
         GnRH, LH, Estrogen = h['GnRH'], h['LH'], h['Estrogen']
-        uG, uL, uE = u
+        uG, uL, uE = u(t)
 
         #clamping the hormones to avoid numerical instability
         GnRH = max(GnRH, 1e-8)
@@ -162,7 +162,7 @@ class ControlMenstrualModel:
     def costate_equations(self, t, y, u, state_solution, c):
         G, L, E = state_solution.sol(t)
         lam1, lam2, lam3 = y
-        uG, uL, uE = u
+        uG, uL, uE = u(t)
         c1, c2, c3, c4, c5 = c
 
         #clamping the hormones to avoid numerical instability
