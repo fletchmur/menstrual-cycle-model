@@ -160,27 +160,15 @@ class ControlMenstrualModel:
         return np.array([dGnRH, dLH, dEstrogen])
     
     def costate_equations(self, t, y, u, state_solution, c):
-        t = float(t)  # 🔑 force scalar
-
-        state_vals = state_solution.sol(t)
-        G = float(state_vals[0])
-        L = float(state_vals[1])
-        E = float(state_vals[2])
-
-        u_vals = u(t)
-        uG = float(u_vals[0])
-        uL = float(u_vals[1])
-        uE = float(u_vals[2])
-
-        # G, L, E = state_solution.sol(t)
-        # lam1, lam2, lam3 = y
-        # uG, uL, uE = u(t)
+        G, L, E = state_solution.sol(t)
+        lam1, lam2, lam3 = y
+        uG, uL, uE = u(t)
         c1, c2, c3, c4, c5 = c
 
         #clamping the hormones to avoid numerical instability
-        # G = max(G, 1e-8)
-        # L = max(L, 1e-8)
-        # E = max(E, 1e-8)
+        G = max(float(G), 1e-8)
+        L = max(float(L), 1e-8)
+        E = max(float(E), 1e-8)
         
         # ---------------- GnRH ----------------
         synth_E_on_GnRH = self.params['synthesis']['GnRH']
