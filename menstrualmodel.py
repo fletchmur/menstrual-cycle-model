@@ -203,7 +203,7 @@ class ControlMenstrualModel:
                 + 2 * c2 * (synth_LH_GnRH * self.hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E) - clearance_LH * L + alphaL * uL) * clearance_LH
 
         dH_dE = lam1 * synth_E_on_GnRH * self.d_hill_biphasic(K_L_E1, K_L_E2, n_L_E1, n_L_E2, L) - lam3 * clearance_Estrogen \
-                + 2 * c1 * (synth_Estrogen * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_Estrogen * E + alphaE * uE) * clearance_Estrogen * 2 * c6 * np.sqrt(E - d)
+                + 2 * c1 * (synth_Estrogen * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_Estrogen * E + alphaE * uE) * clearance_Estrogen * 2 * c6 * (E - d) ** 2
 
         
         return np.array([dH_dG, dH_dL, dH_dE])
