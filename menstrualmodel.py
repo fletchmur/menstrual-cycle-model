@@ -110,9 +110,13 @@ class ControlMenstrualModel:
     
     @staticmethod
     def d_hill_biphasic(K1, K2, n1, n2, P):
-        num = (K2**n2) * (P**(n1 - 1)) * (n1 * (K2**n2) * (K1**n1) - (P**n2) * ((K1**n1) * (n2-n1) + n2 * (P**n1)))
-        denom = (((K2**n2) + (P**n2)) ** 2) * (((K1**n1) + (P**n1)) ** 2)
-        return num / denom
+        # num = (K2**n2) * (P**(n1 - 1)) * (n1 * (K2**n2) * (K1**n1) - (P**n2) * ((K1**n1) * (n2-n1) + n2 * (P**n1)))
+        # denom = (((K2**n2) + (P**n2)) ** 2) * (((K1**n1) + (P**n1)) ** 2)
+        # return num / denom
+
+        num = (K2**n2)*(P**(n1 - 1)) * ((K1**n1)*((n1*K2**n2) + (n1 - n2)*(P**n2)) - n2*P**(n2 + n1))
+        denom = ((K1**n1) + P**n1)**2 * ((K2**n2) + P**n2)**2
+        return num/denom
     
     def ode(self, t, y, u):
         h = self.unpack(y)
@@ -163,7 +167,7 @@ class ControlMenstrualModel:
         G, L, E = state_solution.sol(t)
         lam1, lam2, lam3 = y
         uG, uL, uE = u(t)
-        c1, c2, c3, c4, c5 = c
+        c1, c2, c3, c4, c5, c6, d = c
 
         #clamping the hormones to avoid numerical instability
         G = max(float(G), 1e-8)
@@ -193,17 +197,29 @@ class ControlMenstrualModel:
         K_L_E1, K_L_E2 = self.params['regulatory'][('LH', 'Estrogen')]['K']
         alphaE = self.params['control']['Estrogen']
         
-        dH_dG = -lam1 * clearance_GnRH + lam2 * synth_LH_GnRH * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
-                - 2 *  c2 * (synth_LH_GnRH * self.hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E) - clearance_LH * L + alphaL * uL) \
-                * synth_LH_GnRH * self.d_hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E)
-        
-        dH_dL = -lam2 * clearance_LH + lam3 * synth_Estrogen * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
-                -2 * c1 * (synth_Estrogen * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_Estrogen * E + alphaE * uE) * synth_Estrogen \
-                * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
-                + 2 * c2 * (synth_LH_GnRH * self.hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E) - clearance_LH * L + alphaL * uL) * clearance_LH
+        # dH_dG = -lam1 * clearance_GnRH + lam2 * synth_LH_GnRH * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
+        #         - 2 *  c2 * (synth_LH_GnRH * self.hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E) - clearance_LH * L + alphaL * uL) \
+        #         * synth_LH_GnRH * self.d_hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E)
 
-        dH_dE = lam1 * synth_E_on_GnRH * self.d_hill_biphasic(K_L_E1, K_L_E2, n_L_E1, n_L_E2, L) - lam3 * clearance_Estrogen \
-                + 2 * c1 * (synth_Estrogen * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_Estrogen * E + alphaE * uE) * clearance_Estrogen
+        dH_dG = -lam1 * clearance_GnRH + lam2 * synth_LH_GnRH * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
+                - 2 *  c2 * (synth_LH_GnRH * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_LH * L + alphaL * uL) \
+                * synth_LH_GnRH * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G)
+        
+        # dH_dL = -lam2 * clearance_LH + lam3 * synth_Estrogen * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
+        #         -2 * c1 * (synth_Estrogen * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_Estrogen * E + alphaE * uE) * synth_Estrogen \
+        #         * self.d_hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) \
+        #         + 2 * c2 * (synth_LH_GnRH * self.hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E) - clearance_LH * L + alphaL * uL) * clearance_LH
+        
+        dH_dL = -lam2 * clearance_LH + lam3 * synth_Estrogen * self.d_hill_biphasic(K_L_E1, K_L_E2, n_L_E1, n_L_E2, L) \
+                -2 * c1 * (synth_Estrogen * self.hill_biphasic(K_L_E1, K_L_E2, n_L_E1, n_L_E2, L) - clearance_Estrogen * E + alphaE * uE) * synth_Estrogen \
+                * self.d_hill_biphasic(K_L_E1, K_L_E2, n_L_E1, n_L_E2, L) \
+                + 2 * c2 * (synth_LH_GnRH * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_LH * L + alphaL * uL) * clearance_LH
+
+        # dH_dE = lam1 * synth_E_on_GnRH * self.d_hill_biphasic(K_L_E1, K_L_E2, n_L_E1, n_L_E2, L) - lam3 * clearance_Estrogen \
+        #         + 2 * c1 * (synth_Estrogen * self.hill_biphasic(K1_GLH, K2_GLH, n1_GLH, n2_GLH, G) - clearance_Estrogen * E + alphaE * uE) * clearance_Estrogen * 2 * c6 * (E - d) ** 2
+        
+        dH_dE = lam1 * synth_E_on_GnRH * self.d_hill_biphasic(K_EGnRH1, K_EGnRH2, n_EGnRH1, n_EGnRH2, E) - lam3 * clearance_Estrogen \
+                + 2 * c1 * (synth_Estrogen * self.hill_biphasic(K_L_E1, K_L_E2, n_L_E1, n_L_E2, L) - clearance_Estrogen * E + alphaE * uE) * clearance_Estrogen - 2 * c6 * (E - d)
 
         
         return np.array([dH_dG, dH_dL, dH_dE])
