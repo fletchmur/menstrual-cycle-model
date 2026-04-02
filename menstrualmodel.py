@@ -245,6 +245,6 @@ if __name__ == "__main__":
 
 
     model = ControlMenstrualModel(initial_hormones=initial_conditions, time_domain=(0, 3*28), resolution=1000)
-    sol = model.simulate([0, 0, 0])
-    model.plot(sol, plot_day_14=True, ylim=(0, 12), title="Best Fit Model")
+    sol = model.simulate(lambda t: np.zeros(3))
+    model.plot(sol, plot_day_14=True, ylim=(0, 25), title="Best Fit Model")
     plt.show()
