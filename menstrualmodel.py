@@ -110,9 +110,13 @@ class ControlMenstrualModel:
     
     @staticmethod
     def d_hill_biphasic(K1, K2, n1, n2, P):
-        num = (K2**n2) * (P**(n1 - 1)) * (n1 * (K2**n2) * (K1**n1) - (P**n2) * ((K1**n1) * (n2-n1) + n2 * (P**n1)))
-        denom = (((K2**n2) + (P**n2)) ** 2) * (((K1**n1) + (P**n1)) ** 2)
-        return num / denom
+        # num = (K2**n2) * (P**(n1 - 1)) * (n1 * (K2**n2) * (K1**n1) - (P**n2) * ((K1**n1) * (n2-n1) + n2 * (P**n1)))
+        # denom = (((K2**n2) + (P**n2)) ** 2) * (((K1**n1) + (P**n1)) ** 2)
+        # return num / denom
+
+        num = (K2**n2)*(P**(n1 - 1)) * ((K1**n1)*((n1*K2**n2) + (n1 - n2)*(P**n2)) - n2*P**(n2 + n1))
+        denom = ((K1**n1) + P**n1)**2 * ((K2**n2) + P**n2)**2
+        return num/denom
     
     def ode(self, t, y, u):
         h = self.unpack(y)
